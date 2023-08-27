@@ -1,0 +1,160 @@
+1. How to give access to specific object ?
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/filename"
+        }
+    ]
+}
+Note: Once the policy is attached to IAM user, onecan use the aws s3 cp command to download the object. For example:
+
+aws s3 cp s3://research-data-bucket-123/folder1/filename ./myawsdownload
+2. How to provide access to all objects within a particular folder?
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+        }
+    ]
+}
+Note: Attach above policy to user and use aws s3 cp command followed by — recursive to copy all contents of that folder. For example:
+
+aws s3 cp s3://research-data-bucket-123/folder1 ./myawsdownload --recursive
+3. How to upload objects to S3 ?
+
+{
+ "Version": "2012-10-17",
+ "Statement": [
+  {
+   "Effect": "Allow",
+   "Action": "s3:ListBucket",
+   "Resource": "arn:aws:s3:::research-data-bucket-123"
+  },
+  {
+   "Effect": "Allow",
+   "Action": "s3:GetObject",
+   "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+  },
+  {
+   "Effect": "Allow",
+   "Action": "s3:PutObject",
+   "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+  }
+ ]
+}
+Note: Attach above policy to the IAM user and the command is same as aws s3 cp, just that you need to write your local path first and then path of s3 bucket folder
+
+aws s3 cp /path/to/filename s3://research-data-bucket-123/folder2/
+And to upload directory instead of files.
+Use the following command.
+
+aws s3 cp /home/prasoon/Insta s3://research-data-bucket-123/folder2/subfolder2/ --recursive
+4. How to sync s3 Bucket folder with your local folder ?
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::research-data-bucket-123"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::research-data-bucket-123/folder1/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+        }
+    ]
+}
+aws s3 sync  /path/to/file s3://research-data-bucket-123/folder2/subfolder2/ --delete
+Note: You need to add — delete command at the end, to ensure that bucket folder even deletes file which is not their in your local
+
+5. How to allow only certain IPs to access your s3 bucket ?
+
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1691408416420",
+    "Statement": [
+        {
+            "Sid": "Stmt1691408355696",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::research-data-bucket-123",
+                "arn:aws:s3:::research-data-bucket-123/*"
+            ],
+            "Condition": {
+                "NotIpAddress": {
+                    "aws:SourceIp": "192.140.152.157"
+                }
+            }
+        }
+    ]
+}
+Note: Provide your IP address in aws:SourceIp section. This policy is to be applied on bucket rather than user.
+
+6. How to give temporary access based on time to any s3 object ?
+
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::research-data-bucket-123",
+            "Condition": {
+                "DateLessThan": {
+                    "aws:CurrentTime": "2023-08-06T23:59:59Z"
+                },
+                "DateGreaterThan": {
+                    "aws:CurrentTime": "2023-08-06T00:00:00Z"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*",
+            "Condition": {
+                "DateLessThan": {
+                    "aws:CurrentTime": "2023-08-06T23:59:59Z"
+                },
+                "DateGreaterThan": {
+                    "aws:CurrentTime": "2023-08-06T00:00:00Z"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::research-data-bucket-123/folder1/*"
+        }
+    ]
+}
+Note: This policy is to be applied on bucket rather than user.
