@@ -1,0 +1,76 @@
+#Policy attached to your lambda role
+"""
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::source-bucket/*",
+                "arn:aws:s3:::source-bucket",
+                "arn:aws:s3:::destination-bucket/*",
+                "arn:aws:s3:::destination-bucket"
+            ]
+        }
+    ]
+}
+
+"""
+#Python code to transfer and categorise files based on time, data came to s3
+import json
+import boto3
+from zoneinfo import ZoneInfo
+
+def lambda_handler(event, context):
+    # Define the target timezone for date handling
+    target_timezone = ZoneInfo('Asia/Kolkata')
+    
+    # Names of the source and destination S3 buckets
+    bucket_name = 'end2end-youtube-datalake'
+    destination_bucket_name = 'end2end-youtube-datalake-stage2'
+    
+    # Prefix for the source folder containing Parquet files
+    folder_prefix = 'dbname/schemaName/table1/'
+    
+    # Prefix for the destination folder where data will be organized
+    destination_folder_prefix = 'dbname/schemaName/table1/'
+    
+    # Initialize the S3 client
+    s3 = boto3.client('s3')
+    
+    # List objects in the source bucket with the specified prefix
+    response = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)['Contents']
+    
+    # Filter and create a list of (object key, last modified time) tuples for Parquet files
+    last_added = [(obj['Key'], obj['LastModified'].astimezone(target_timezone)) for obj in response if obj['Key'].endswith('.parquet')]
+    
+    # If there are Parquet files to process
+    if len(last_added) > 0:
+        for obj in last_added:
+            # Define the source of the object to copy
+            copy_source = {
+                'Bucket': bucket_name,
+                'Key': obj[0]
+            }
+    
+            # Create the destination path based on the date and time of the object
+            path = f"dbname/schemaName/table1/{obj[1].year}/{obj[1].month}/{obj[1].day}/{obj[1].hour}/{obj[0].split('/')[-1]}"
+      
+            # Copy the object to the new destination
+            s3.copy_object(CopySource=copy_source, Bucket=destination_bucket_name, Key=path)
+            
+            # Delete the object from the source
+            s3.delete_object(Bucket=bucket_name, Key=obj[0])
+    
+    # Return a response indicating successful execution
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Data transferred successfully!')
+    }
